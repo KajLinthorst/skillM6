@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGS Admin Afsprakenplanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .dropdown {
+            display: none;
+        }
+
+        .toggle-button {
+            cursor: pointer;
+            color: #007BFF;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="admin-container">
+        <h1>AGS Admin Afsprakenplanner</h1>
+        <h2>Tijdslotbeheer</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tijdslot</th>
+                    <th>Beschikbaarheid</th>
+                    <th>Acties</th>
+                </tr>
+            </thead>
+            <tbody id="slots-table-body"></tbody>
+        </table>
+        <div id="extra-slots">
+            <span class="toggle-button" onclick="toggleDropdown()">Meer tijdsloten weergeven...</span>
+            <div class="dropdown" id="dropdown-content"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            loadSlots();
+        });
+
+        function generateTimeSlots(startTime, endTime, intervalMinutes) {
+            const slots = [];
+            let currentTime = new Date(`1970-01-01T${startTime}:00`);
+            const endTimeDate = new Date(`1970-01-01T${endTime}:00`);
+
+            while (currentTime < endTimeDate) {
+                const nextTime = new Date(currentTime.getTime() + intervalMinutes * 60000);
+                slots.push(`${formatTime(currentTime)} - ${formatTime(nextTime)}`);
+                currentTime = nextTime;
+            }
+            return slots;
+        }
+
+        function formatTime(date) {
+            return date.toTimeString().slice(0, 5);
+        }
+
+        function loadSlots() {
+            const slots = generateTimeSlots("09:00", "15:00", 15);
+            const tableBody = document.getElementById("slots-table-body");
+            const dropdown = document.getElementById("dropdown-content");
+            tableBody.innerHTML = "";
+            dropdown.innerHTML = "";
+
+            slots.forEach((slot, index) => {
+                if (index < 5) {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${slot}</td>
+                        <td>Beschikbaar</td>
+                        <td><button onclick="blockSlot(${index})">Blokkeren</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                } else {
+                    const dropdownItem = document.createElement("div");
+                    dropdownItem.innerHTML = `
+                        <span>${slot}</span>
+                        <button onclick="blockSlot(${index})">Blokkeren</button>
+                    `;
+                    dropdown.appendChild(dropdownItem);
+                }
+            });
+        }
+
+        function blockSlot(index) {
+            alert(`Slot ${index + 1} geblokkeerd!`);
+        }
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById("dropdown-content");
+            const toggleButton = document.querySelector(".toggle-button");
+            if (dropdown.style.display === "none" || dropdown.style.display === "") {
+                dropdown.style.display = "block";
+                toggleButton.textContent = "Minder tijdsloten weergeven...";
+            } else {
+                dropdown.style.display = "none";
+                toggleButton.textContent = "Meer tijdsloten weergeven...";
+            }
+        }
+    </script>
+</body>
+</html>

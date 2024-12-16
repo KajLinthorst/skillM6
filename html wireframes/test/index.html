@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGS Afsprakenplanner</title>
+    <style>
+        /* Styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        #admin-container, #student-container {
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #appointment-feedback {
+            margin-top: 20px;
+            color: green;
+            font-weight: bold;
+        }
+
+        #view-container > div {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Admin Interface -->
+    <div id="admin-container">
+        <h1>AGS Admin Afsprakenplanner</h1>
+        <div id="calendar-view">
+            <button onclick="viewMonth()">Maandoverzicht</button>
+            <button onclick="viewWeek()">Weekoverzicht</button>
+            <button onclick="viewDay()">Dagoverzicht</button>
+        </div>
+        <div id="slot-management">
+            <h2>Tijdslotbeheer</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tijdslot</th>
+                        <th>Beschikbaarheid</th>
+                        <th>Acties</th>
+                    </tr>
+                </thead>
+                <tbody id="slots-table-body"></tbody>
+            </table>
+        </div>
+        <div id="view-container">
+            <div id="day-view" style="display:none;">
+                <h2>Dagoverzicht</h2>
+                <div id="day-content">Geen afspraken voor vandaag.</div>
+            </div>
+            <div id="week-view" style="display:none;">
+                <h2>Weekoverzicht</h2>
+                <div id="week-content">Geen afspraken voor deze week.</div>
+            </div>
+            <div id="month-view" style="display:none;">
+                <h2>Maandoverzicht</h2>
+                <div id="month-content">Geen afspraken voor deze maand.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Interface -->
+    <div id="student-container">
+        <h1>Maak een Printafspraak</h1>
+        <form id="appointment-form">
+            <label for="date">Datum:</label>
+            <input type="date" id="date" name="date" required />
+            <label for="slot">Tijdslot:</label>
+            <select id="slot" name="slot"></select>
+            <label for="paper-type">Papierformaat:</label>
+            <select id="paper-type" name="paper-type">
+                <option value="A5">A5</option>
+                <option value="A4">A4</option>
+                <option value="A3">A3</option>
+                <option value="A2">A2</option>
+                <option value="A1">A1</option>
+            </select>
+            <label for="double-sided">Dubbelzijdig:</label>
+            <input type="checkbox" id="double-sided" name="double-sided" />
+            <label for="copies">Aantal afdrukken:</label>
+            <input type="number" id="copies" name="copies" min="1" required />
+            <button type="submit">Afspraak Maken</button>
+        </form>
+        <div id="appointment-feedback"></div>
+    </div>
+
+    <script>
+        // Dummy afspraken data
+        const appointments = [
+            { date: "2024-12-09", slot: "09:00 - 09:15", details: "5 afdrukken A4 enkelzijdig" },
+            { date: "2024-12-10", slot: "10:00 - 10:15", details: "3 afdrukken A3 dubbelzijdig" },
+            { date: "2024-12-12", slot: "14:00 - 14:15", details: "2 afdrukken A2 enkelzijdig" },
+        ];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadSlots();
+            document.getElementById("appointment-form").addEventListener("submit", createAppointment);
+        });
+
+        function generateTimeSlots(startTime, endTime, intervalMinutes) {
+            const slots = [];
+            let currentTime = new Date(`1970-01-01T${startTime}:00`);
+            const endTimeDate = new Date(`1970-01-01T${endTime}:00`);
+
+            while (currentTime < endTimeDate) {
+                const nextTime = new Date(currentTime.getTime() + intervalMinutes * 60000);
+                slots.push(`${formatTime(currentTime)} - ${formatTime(nextTime)}`);
+                currentTime = nextTime;
+            }
+
+            return slots;
+        }
+
+        function formatTime(date) {
+            return date.toTimeString().slice(0, 5);
+        }
+
+        function loadSlots() {
+            const slots = generateTimeSlots("09:00", "15:00", 15); // 15 minuten intervallen
+            const slotSelect = document.getElementById("slot");
+            slotSelect.innerHTML = "";
+
+            slots.forEach((slot) => {
+                const option = document.createElement("option");
+                option.value = slot;
+                option.textContent = slot;
+                slotSelect.appendChild(option);
+            });
+
+            const tableBody = document.getElementById("slots-table-body");
+            tableBody.innerHTML = "";
+            slots.forEach((slot, index) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${slot}</td>
+                    <td>Beschikbaar</td>
+                    <td>
+                        <button onclick="blockSlot(${index})">Blokkeren</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function createAppointment(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = {
+                date: form.date.value,
+                slot: form.slot.value,
+                paperType: form["paper-type"].value,
+                doubleSided: form["double-sided"].checked,
+                copies: form.copies.value,
+            };
+
+            document.getElementById("appointment-feedback").textContent =
+                `Afspraak gemaakt: ${data.date} - ${data.slot} voor ${data.copies} afdrukken.`;
+        }
+
+        function blockSlot(index) {
+            alert(`Slot ${index + 1} geblokkeerd!`);
+        }
+
+        function viewMonth() {
+            showView("month");
+            const monthContent = document.getElementById("month-content");
+            monthContent.innerHTML = appointments.map(
+                (appt) => `<div>${appt.date}: ${appt.slot} - ${appt.details}</div>`
+            ).join("");
+        }
+
+        function viewWeek() {
+            showView("week");
+            const weekContent = document.getElementById("week-content");
+            const weekAppointments = appointments.filter((appt) => isThisWeek(appt.date));
+            weekContent.innerHTML = weekAppointments.length
+                ? weekAppointments.map(
+                    (appt) => `<div>${appt.date}: ${appt.slot} - ${appt.details}</div>`
+                ).join("")
+                : "Geen afspraken voor deze week.";
+        }
+
+        function viewDay() {
+            showView("day");
+            const dayContent = document.getElementById("day-content");
+            const today = new Date().toISOString().split("T")[0];
+            const todayAppointments = appointments.filter((appt) => appt.date === today);
+            dayContent.innerHTML = todayAppointments.length
+                ? todayAppointments.map(
+                    (appt) => `<div>${appt.slot} - ${appt.details}</div>`
+                ).join("")
+                : "Geen afspraken voor vandaag.";
+        }
+
+        function showView(view) {
+            document.getElementById("day-view").style.display = view === "day" ? "block" : "none";
+            document.getElementById("week-view").style.display = view === "week" ? "block" : "none";
+            document.getElementById("month-view").style.display = view === "month" ? "block" : "none";
+        }
+
+        function isThisWeek(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 1));
+            const lastDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 7));
+            return date >= firstDayOfWeek && date <= lastDayOfWeek;
+        }
+    </script>
+</body>
+</html>
