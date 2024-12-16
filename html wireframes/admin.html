@@ -37,6 +37,7 @@
             padding: 10px;
             border: none;
             cursor: pointer;
+            width: 100%; /* Make buttons full width */
         }
 
         button:hover {
@@ -51,13 +52,114 @@
             cursor: pointer;
             color: #007BFF;
             text-decoration: underline;
+            display: block; /* Make toggle button block level */
+            width: 100%; /* Make toggle button full width */
+            padding: 10px; /* Match padding with buttons */
+            background-color: #007BFF; /* Match background color with buttons */
+            color: white; /* Match text color with buttons */
+            border: none; /* Remove border */
+        }
+
+        .toggle-button:hover {
+            background-color: #0056b3; /* Match hover effect with buttons */
+        }
+
+        .calendar-button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .calendar-button:hover {
+            background-color: #218838;
+        }
+
+        .calendar-icon {
+            cursor: pointer;
+            font-size: 24px;
+            color: #007BFF;
+            margin-left: 10px;
+        }
+
+        .day-dropdown {
+            display: inline-block;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .day-dropdown button {
+            padding: 5px 10px;
+            font-size: 14px;
+            width: auto; /* Make button smaller */
+        }
+
+        .day-dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            z-index: 1;
+            width: 100%;
+        }
+
+        .day-dropdown-content input {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .day-dropdown-content ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .day-dropdown-content li {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .day-dropdown-content li:hover {
+            background-color: #f4f4f4;
+        }
+
+        .week-selector {
+            margin-top: 10px;
         }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 </head>
 <body>
     <div id="admin-container">
         <h1>AGS Admin Afsprakenplanner</h1>
         <h2>Tijdslotbeheer</h2>
+        <div class="day-dropdown">
+            <button onclick="toggleDayDropdown()">Selecteer een dag <span class="calendar-icon">📅</span></button>
+            <div class="day-dropdown-content" id="day-dropdown-content">
+                <input type="text" id="day-search" placeholder="Zoek een dag..." onkeyup="filterDays()">
+                <ul id="day-list">
+                    <li onclick="selectDay('Maandag')">Maandag</li>
+                    <li onclick="selectDay('Dinsdag')">Dinsdag</li>
+                    <li onclick="selectDay('Woensdag')">Woensdag</li>
+                    <li onclick="selectDay('Donderdag')">Donderdag</li>
+                    <li onclick="selectDay('Vrijdag')">Vrijdag</li>
+                    <li onclick="selectDay('Zaterdag')">Zaterdag</li>
+                    <li onclick="selectDay('Zondag')">Zondag</li>
+                </ul>
+                <div class="week-selector">
+                    <input type="text" id="week-search" placeholder="Zoek een week..." onkeyup="filterWeeks()">
+                    <label for="week-select">Selecteer een week:</label>
+                    <select id="week-select">
+                        ${Array.from({ length: 52 }, (_, i) => `<option value="${i + 1}">Week ${i + 1}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+        </div>
         <table>
             <thead>
                 <tr>
@@ -69,12 +171,17 @@
             <tbody id="slots-table-body"></tbody>
         </table>
         <div id="extra-slots">
-            <span class="toggle-button" onclick="toggleDropdown()">Meer tijdsloten weergeven...</span>
-            <div class="dropdown" id="dropdown-content"></div>
+            <button class="toggle-button" onclick="toggleDropdown()">Meer tijdsloten weergeven...</button>
+            <div class="dropdown" id="dropdown-content">
+                <table>
+                    <tbody id="dropdown-table-body"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
+
         document.addEventListener("DOMContentLoaded", () => {
             loadSlots();
         });
@@ -99,32 +206,33 @@
         function loadSlots() {
             const slots = generateTimeSlots("09:00", "15:00", 15);
             const tableBody = document.getElementById("slots-table-body");
-            const dropdown = document.getElementById("dropdown-content");
+            const dropdownTableBody = document.getElementById("dropdown-table-body");
             tableBody.innerHTML = "";
-            dropdown.innerHTML = "";
+            dropdownTableBody.innerHTML = "";
 
-            slots.forEach((slot, index) => {
-                if (index < 5) {
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
-                        <td>${slot}</td>
-                        <td>Beschikbaar</td>
-                        <td><button onclick="blockSlot(${index})">Blokkeren</button></td>
-                    `;
-                    tableBody.appendChild(row);
-                } else {
-                    const dropdownItem = document.createElement("div");
-                    dropdownItem.innerHTML = `
-                        <span>${slot}</span>
-                        <button onclick="blockSlot(${index})">Blokkeren</button>
-                    `;
-                    dropdown.appendChild(dropdownItem);
-                }
+            slots.slice(0, 5).forEach((slot, index) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${slot}</td>
+                    <td>Beschikbaar</td>
+                    <td><button onclick="blockSlot('${slot}')">Blokkeren</button></td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            slots.slice(5).forEach((slot, index) => {
+                const dropdownItem = document.createElement("tr");
+                dropdownItem.innerHTML = `
+                    <td>${slot}</td>
+                    <td>Beschikbaar</td>
+                    <td><button onclick="blockSlot('${slot}')">Blokkeren</button></td>
+                `;
+                dropdownTableBody.appendChild(dropdownItem);
             });
         }
 
-        function blockSlot(index) {
-            alert(`Slot ${index + 1} geblokkeerd!`);
+        function blockSlot(slot) {
+            alert(`Slot ${slot} geblokkeerd!`);
         }
 
         function toggleDropdown() {
@@ -138,6 +246,33 @@
                 toggleButton.textContent = "Meer tijdsloten weergeven...";
             }
         }
+
+        function toggleDayDropdown() {
+            const dropdown = document.getElementById("day-dropdown-content");
+            dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
+        }
+
+        function filterDays() {
+            const input = document.getElementById("day-search").value.toLowerCase();
+            const listItems = document.querySelectorAll("#day-list li");
+            listItems.forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(input) ? "block" : "none";
+            });
+        }
+
+        function filterWeeks() {
+            const input = document.getElementById("week-search").value.toLowerCase();
+            const options = document.querySelectorAll("#week-select option");
+            options.forEach(option => {
+                option.style.display = option.textContent.toLowerCase().includes(input) ? "block" : "none";
+            });
+        }
+
+        function selectDay(day) {
+            alert(`Geselecteerde dag: ${day}`);
+            toggleDayDropdown();
+        }
     </script>
+    <div id="datepicker" style="display:none;"></div>
 </body>
 </html>
